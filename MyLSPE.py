@@ -50,12 +50,20 @@ class MyLSPE:
 
 
 if __name__ == "__main__":
-    # TODO add unit tests
-    x = list(range(10))
-    y = x
-    PE = MyLSPE(x, y)
-    print(PE.ols())
-    print(PE.ols(order=3))
-    w_diag = np.ones(10)
-    print(PE.wls(w_diag))
-    print(PE.wls(w_diag, order=2))
+    print(f"{' Running MyLSPE.py ':=^40}")
+    print("Performing unit tests...")
+    # OLS Example from AE4320 lecture 4
+    x_ols = [0, 1, 2, 3]
+    y_ols = [-1, 2, 5, 1]
+    PE_test = MyLSPE(x_ols, y_ols, order=2)
+    theta_ols = PE_test.ols()
+    theta_ols_matlab = np.asarray([[-1.3500], [6.1500], [-1.7500]])
+    assert (np.sum(np.round(theta_ols, 4) - theta_ols_matlab) == 0)
+
+    # WLS Example from AE4320 lecture 4
+    var_wls = np.asarray([0.1, 0.1, 1, 0.1]) ** 2
+    theta_wls = PE_test.wls(var_wls)
+    theta_wls_matlab = np.asarray([[-1.0077], [4.2102], [-1.1795]])
+    assert(np.sum(np.round(theta_wls, 4) - theta_wls_matlab) == 0)
+
+    print("Unit tests passed!")
