@@ -56,10 +56,22 @@ class SimplexSplines:
             # B-Spline coefficients should be already correctly sorted with B-mat, prob not needed
 
     @staticmethod
+    def multi_index_perm(d, n):
+        """
+        Computes all valid permutation of multi index k = (k_0, ..., k_n) with |k| = d
+        Returns a sorted array with descending multi index combinations ([[d, 0, 0], ..., [0, 0, d]])
+        :param d: int
+        :param n: int
+        :return: 2D ndarray
+        """
+        mi_perm = np.asarray(list(product(range(d + 1), repeat=n)))
+        mi_perm_valid = mi_perm[mi_perm.sum(axis=-1) == d][::-1]
+        return mi_perm_valid
+
+    @staticmethod
     def b_spline_func(d, b_coords):
         # Compute only relevant permutations of k (|k| = degree)
-        k_permutations = np.asarray(list(product(range(d + 1), repeat=b_coords.shape[-1])))
-        k_permutations = k_permutations[k_permutations.sum(axis=-1) == d][::-1]
+        k_permutations = SimplexSplines.multi_index_perm(d, b_coords.shape[-1])
 
         b_coords = np.expand_dims(b_coords, axis=1)  # Add axis for broadcasting
         b_block = np.power(b_coords, k_permutations).prod(axis=-1)
@@ -86,7 +98,7 @@ if __name__ == "__main__":
     x = np.random.random(1000).reshape(2, 500)
     y = np.random.random(500)
     ss = SimplexSplines(x, y)
-    res = 4
+    res = 3
 
     # import matplotlib.pyplot as plt
     # plt.plot(x[0], x[1], ls="None", marker="o")
@@ -95,6 +107,7 @@ if __name__ == "__main__":
     # ss.triangulate(res=res)
     # plt.triplot(ss.tri.points[:, 0], ss.tri.points[:, 1], ss.tri.simplices)
     # plt.show()
+    # print(ss.tri.neighbors)
 
     # Exercise 1 L06 Barycentric coordinate transformation
     t_points = [[0, 0], [1, -1], [-1, -1]]
