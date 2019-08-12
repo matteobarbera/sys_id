@@ -90,7 +90,28 @@ class MyIEKF:
 
             # TODO include iteration step
             if iterate:
-                raise NotImplemented("Iteration step of IEKF not implemented!")
+                eta2 = x_kk_1
+                epsilon = 1e-10
+                err = 2 *  epsilon
+                max_iters = 100
+                for i in range(max_iters):
+                    if err < epsilon:
+                        break
+                    eta1 = eta2
+                    Hx = self._calc_Hx(x_kk_1, U_k[:, k])
+
+                    # Innovation matrix
+                    Ve = Hx @ P_kk_1 @ Hx.T + self._R
+
+                    # Kalman gain
+                    K = P_kk_1 @ Hx.T @ inv(Ve)
+                    # Observation state
+                    z_p = self._calc_h(eta1, U_k[:, k])
+
+                    eta2 = x_kk_1 + K @ (Z_k[:, k] - z_p - Hx @ (x_kk_1 - eta1))
+                    err = np.linalg.norm(eta2 - eta1, np.inf) / np.linalg.norm(eta1, np.inf)
+                else:
+                    raise RuntimeError("Exceeded max IEKF iterations")
             else:
                 Hx = self._calc_Hx(x_kk_1, U_k[:, k])
                 # Covariance matrix of innovation
