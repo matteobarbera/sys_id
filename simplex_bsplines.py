@@ -8,6 +8,7 @@ from scipy.spatial import Delaunay
 from scipy.special import factorial
 
 
+# TODO Add documentation
 class SimplexSplines:
     def __init__(self, x, y):
         self._dim = min(x.shape)
@@ -86,6 +87,7 @@ class SimplexSplines:
         b_block = np.power(b_coords, k_permutations).prod(axis=-1)
 
         # Calculate d! / k!
+
         b_coeffs = np.repeat(factorial(d), k_permutations.shape[0]) / factorial(k_permutations).prod(axis=1)
         b_block *= b_coeffs  # B-form polynomial
         return b_block
@@ -150,21 +152,40 @@ class SimplexSplines:
         other_mat = np.append(b_mat.transpose() @ y_vec, np.zeros(h_mat.shape[0]))
         return inv(kkt_mat.todense()) @ other_mat
 
+    def _ols(self, d, m):
+        b_mat, y_vec = self.gen_b_rmat(d)
+        h_mat = self.smoothness_mat(d, m)
+
+        lambda_vec = np.ones(h_mat.shape[0])
+        eps = 10e-6
+        c_opt_old = inv((2 * b_mat.transpose() @ b_mat + (1 / eps) * h_mat.transpose() @ h_mat).todense()) @ \
+            (2 * b_mat.transpose() @ y_vec - h_mat.transpose() @ lambda_vec)
+
+        max_iter = 10
+        threshold = 1e-10
+        for i in range(max_iter):
+            c_opt_new = inv((2 * b_mat.transpose() @ b_mat + (1 / eps) * h_mat.transpose() @ h_mat).todense()) @ \
+                        (2 * b_mat.transpose() @ b_mat @ c_opt_old)
+            if np.abs(c_opt_old - c_opt_new).sum() < threshold:
+                break
+            c_opt_old = c_opt_new
+        else:
+            raise RuntimeError("Exceeded max iterations for the calculation of c_opt")
+
+        return c_opt_new
+
+    def run(self, d, m):
+        if self.tri is None:
+            raise RuntimeError("Triangulation is missing")
+        c_opt = self._ols(d, m)
+        return c_opt
+
 
 if __name__ == "__main__":
     x = np.random.random(1000).reshape(2, 500)
     y = np.random.random(500)
     ss = SimplexSplines(x, y)
     res = 3
-
-    # import matplotlib.pyplot as plt
-    # plt.plot(x[0], x[1], ls="None", marker="o")
-    # points = ss._n_cube_domain(res)
-    # plt.plot(points[:, 0], points[:, 1], ls="None", color='k', marker='x')
-    # ss.triangulate(res=res)
-    # plt.triplot(ss.tri.points[:, 0], ss.tri.points[:, 1], ss.tri.simplices)
-    # plt.show()
-    # print(ss.tri.neighbors)
 
     # Exercise 1 L06 Barycentric coordinate transformation
     t_points = [[0, 0], [1, -1], [-1, -1]]
@@ -194,5 +215,29 @@ if __name__ == "__main__":
     answ_hmat = [[0, -1, 0, 1, 0, 0], [0, 0, -1, 0, 0, 1]]
     assert((np.sort(h_mat) - np.sort(answ_hmat)).sum() < 1e-15)
     c_opt_inv = ss2._ols_debug(1, 0)
+    c_opt_iter = ss2._ols(1, 0)
     answ_copt = [-2.5, 0, 2.5, 0, 2.5, 2.5, 0, 0]
     assert((np.sort(c_opt_inv) - np.sort(answ_copt)).sum() < 1e-15)
+    assert((np.sort(c_opt_iter) - np.sort(answ_copt[:-2])).sum() < 1e-15)
+    assert((c_opt_inv[:-2] - c_opt_iter).sum() < 1e-10)
+
+    #
+    # plt.plot(x[0], x[1], ls="None", marker="o")
+    # points = ss._n_cube_domain(res)
+    # plt.plot(points[:, 0], points[:, 1], ls="None", color='k', marker='x')
+    # ss.triangulate(res=res)
+    # plt.triplot(ss.tri.points[:, 0], ss.tri.points[:, 1], ss.tri.simplices)
+    #
+    # fig = plt.figure()
+    # ax = fig.gca(projection='3d')
+    #
+    # # FIXME calculate cartesian coords of vertices of all simplices to plot
+    # X = ss2.tri.points[:, 0]
+    # Y = ss2.tri.points[:, 1]
+    # # X, Y = np.meshgrid(X, Y)
+    # p_x = b_regmat @ c_opt_inv[:-2]
+    # print(c_opt_inv[:-2])
+    # print(X, Y, p_x)
+    # surf = ax.plot_trisurf(X, Y, p_x)
+    #
+    # plt.show()
