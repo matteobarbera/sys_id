@@ -1,8 +1,8 @@
 import numpy as np
 from numpy.linalg import inv
-from scipy.integrate import odeint
 
 from my_c2d import my_c2d
+from my_rk4 import my_rk4
 
 
 # TODO Type checking is apparently bad practice in python, type hint instead?
@@ -27,8 +27,7 @@ class MyIEKF:
         self._nm = None  # number of measurements (z vec)
         self._m = None  # number if inputs
 
-        # FIXME odeint only accepts functions of form f(y,t)
-        self._integration_routine = odeint
+        self._integration_routine = my_rk4
         self._discretize_matrices = my_c2d
 
         # Default initial estimates
@@ -70,43 +69,40 @@ class MyIEKF:
         if self._Q is None:
             raise RuntimeError("Variance matrices Q and R need to be specified (use set_variance_matrices()")
 
-        x_kk = self._x_0
+        x_kk = self._x_0  # x_kk used for estimation error calculation
         x_k_1k_1 = self._Ex_0
         P_k_1k_1 = self._P_0
         ti = 0
         tf = self._dt
-        # TODO pass parameters to the calc functions
         for k in range(self._N):
             # Prediction x(k+1|k)
-            x_kk_1 = self._integration_routine(self._calc_f, x_kk, np.linspace(ti, tf, num=10))
+            x_kk_1 = self._integration_routine(self._calc_f, x_k_1k_1, U_k[:, k], [ti, tf])
             x_kk = x_kk_1
             # Predicted output z(k+1|k)
-            z_kk_1 = self._calc_h()
+            z_kk_1 = self._calc_h(x_kk_1, U_k[:, k])
 
             # Calculate Phi(k+1,k) and Gamma(k+1,k)
-            Fx = self._calc_Fx()
+            Fx = self._calc_Fx(x_kk_1, U_k[:, k])
             Phi, Gamma = self._discretize_matrices(Fx, self._G, dt)
 
             # Prediction covariance matrix P(k+1|k)
-            P_kk_1 = np.matmul(np.matmul(Phi, P_k_1k_1), Phi.T) + \
-                     np.matmul(np.matmul(Gamma, self._Q), Gamma.T)
+            P_kk_1 = Phi @ P_k_1k_1 @ Phi.T + Gamma @ self._Q @ Gamma.T
 
             # TODO include iteration step
             if iterate:
                 raise NotImplemented("Iteration step of IEKF not implemented!")
             else:
-                Hx = self._calc_Hx()
+                Hx = self._calc_Hx(x_kk_1, U_k[:, k])
                 # Covariance matrix of innovation
-                Ve = np.matmul(np.matmul(Hx, P_kk_1), Hx.T) + self._R
+                Ve = Hx @ P_kk_1 @ Hx.T + self._R
 
                 # Kalman gain K(k+1)
-                K_gain = np.matmul(np.matmul(P_kk_1, Hx.T), inv(Ve))
+                K_gain = P_kk_1 @ Hx.T @ inv(Ve)
                 # Calculate optimal state x(k+1|k+1)
-                x_k_1k_1 = x_kk_1 + np.matmul(K_gain, (Z_k[:, k] - z_kk_1))
+                x_k_1k_1 = x_kk_1 + K_gain @ (Z_k[:, k] - z_kk_1)
 
-            P_term = np.eye(self._n) - np.matmul(K_gain, Hx)
-            P_k_1k_1 = np.matmul(np.matmul(P_term, P_kk_1), P_term.T) + \
-                       np.matmul(np.matmul(K_gain, self._R), K_gain.T)
+            P_term = np.eye(self._n) - K_gain @ Hx
+            P_k_1k_1 = P_term @ P_kk_1 @ P_term.T + K_gain @ self._R @ K_gain.T
 
             # Next step
             ti = tf
