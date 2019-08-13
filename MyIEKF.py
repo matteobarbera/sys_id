@@ -5,12 +5,9 @@ from my_c2d import my_c2d
 from my_rk4 import my_rk4
 
 
-# TODO Type checking is apparently bad practice in python, type hint instead?
 # TODO add documentation
 class MyIEKF:
     def __init__(self, n, calc_f, calc_h, calc_Fx, calc_Hx, G):
-        # if not callable(calc_f) or not callable(calc_h) or not callable(calc_Fx) or not callable(calc_Hx):
-        #     raise TypeError("Inputs must be function pointers")
         if n < 1:
             raise ValueError("Dimension of state vector should be greater than 0")
 
@@ -50,10 +47,6 @@ class MyIEKF:
         self._R = R
 
     def run_filter(self, Z_k, U_k, dt, iterate=True):
-        # if type(Z_k) is not np.ndarray or type(U_k) is not np.ndarray:
-        #     raise TypeError("Input arrays must be of type numpy ndarray")
-        # if type(dt) is not float or type(dt) is not int:
-        #     raise TypeError("dt should be an int or float")
         if Z_k.shape[1] != U_k.shape[1]:
             raise ValueError("The row length of the input arrays should be the same")
         if dt <= 0:
@@ -69,6 +62,10 @@ class MyIEKF:
         if self._Q is None:
             raise RuntimeError("Variance matrices Q and R need to be specified (use set_variance_matrices()")
 
+        store_x = np.empty((self._n, self._N))
+        store_stdx = np.empty((self._n, self._N))
+
+        # TODO check if x_0 is actually needed
         x_kk = self._x_0  # x_kk used for estimation error calculation
         x_k_1k_1 = self._Ex_0
         P_k_1k_1 = self._P_0
@@ -92,7 +89,7 @@ class MyIEKF:
             if iterate:
                 eta2 = x_kk_1
                 epsilon = 1e-10
-                err = 2 *  epsilon
+                err = 2 * epsilon
                 max_iters = 100
                 for i in range(max_iters):
                     if err < epsilon:
@@ -124,9 +121,14 @@ class MyIEKF:
 
             P_term = np.eye(self._n) - K_gain @ Hx
             P_k_1k_1 = P_term @ P_kk_1 @ P_term.T + K_gain @ self._R @ K_gain.T
+            P_cor = np.diag(P_k_1k_1)
+            stdx_cor = np.sqrt(P_cor)
+
+            store_x[:, k] = x_k_1k_1
+            store_stdx[:, k] = stdx_cor
 
             # Next step
             ti = tf
             tf += dt
 
-            # TODO make store result function, eventually let user specify how much to store
+            return store_x, store_stdx
