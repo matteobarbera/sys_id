@@ -2,6 +2,8 @@ from collections import defaultdict
 from itertools import product
 
 import numpy as np
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from scipy import sparse
 from scipy.linalg import inv
 from scipy.spatial import Delaunay
@@ -54,8 +56,14 @@ class SimplexSplines:
         for s_idx, data_b, data_y in zip(idx_simplices_valid, b_coords, self._y[mask]):
             self._simp_xb_dict[s_idx].append(data_b)
             self._simp_y_dict[s_idx].append(data_y)
-            # TODO Store where each data point in cart coords is too?
-            # B-Spline coefficients should be already correctly sorted with B-mat, prob not needed
+
+    def _bary2cart_coeffs(self, d):
+        sorted_simp = np.take_along_axis(self.tri.simplices, np.argsort(self.tri.simplices), axis=-1)
+        c_loc = SimplexSplines.multi_index_perm(d, self._dim) / d
+        cart_coords = []
+        for simp in sorted_simp:
+            cart_coords += list(c_loc @ self.tri.points[simp])
+        return np.asarray(cart_coords)
 
     def cart2bary_simp(self, simp, target):
         # Barycentric coordinate calculation of point wrt simplex simp
@@ -174,10 +182,23 @@ class SimplexSplines:
 
         return c_opt_new
 
-    def run(self, d, m):
+    def graph_coeffs(self, d, coeffs):
+        # FIXME ???
+        raise NotImplemented("Graph is still not correct")
+
+        xy_coords = self._bary2cart_coeffs(d)
+
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        ax.plot_trisurf(xy_coords[:, 0], xy_coords[:, 1], coeffs, cmap=plt.cm.CMRmap)
+        plt.show()
+
+    def run(self, d, m, graph=False):
         if self.tri is None:
             raise RuntimeError("Triangulation is missing")
         c_opt = self._ols(d, m)
+        if graph:
+            self.graph_coeffs(d, c_opt)
         return c_opt
 
 
@@ -221,6 +242,8 @@ if __name__ == "__main__":
     assert((np.sort(c_opt_iter) - np.sort(answ_copt[:-2])).sum() < 1e-15)
     assert((c_opt_inv[:-2] - c_opt_iter).sum() < 1e-10)
 
+    # from matplotlib import pyplot as plt
+    # from mpl_toolkits.mplot3d import Axes3D
     #
     # plt.plot(x[0], x[1], ls="None", marker="o")
     # points = ss._n_cube_domain(res)
@@ -228,16 +251,6 @@ if __name__ == "__main__":
     # ss.triangulate(res=res)
     # plt.triplot(ss.tri.points[:, 0], ss.tri.points[:, 1], ss.tri.simplices)
     #
-    # fig = plt.figure()
-    # ax = fig.gca(projection='3d')
-    #
-    # # FIXME calculate cartesian coords of vertices of all simplices to plot
-    # X = ss2.tri.points[:, 0]
-    # Y = ss2.tri.points[:, 1]
-    # # X, Y = np.meshgrid(X, Y)
-    # p_x = b_regmat @ c_opt_inv[:-2]
-    # print(c_opt_inv[:-2])
-    # print(X, Y, p_x)
-    # surf = ax.plot_trisurf(X, Y, p_x)
+    # ss2.run(1, 0, True)
     #
     # plt.show()
