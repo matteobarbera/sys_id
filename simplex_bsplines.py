@@ -95,7 +95,6 @@ class SimplexSplines:
         b_block = np.power(b_coords, k_permutations).prod(axis=-1)
 
         # Calculate d! / k!
-
         b_coeffs = np.repeat(factorial(d), k_permutations.shape[0]) / factorial(k_permutations).prod(axis=1)
         b_block *= b_coeffs  # B-form polynomial
         return b_block
@@ -208,6 +207,15 @@ if __name__ == "__main__":
     ss = SimplexSplines(x, y)
     res = 3
 
+    # import matplotlib.pyplot as plt
+    # plt.plot(x[0], x[1], ls="None", marker="o")
+    # points = ss._n_cube_domain(res)
+    # plt.plot(points[:, 0], points[:, 1], ls="None", color='k', marker='x')
+    # ss.triangulate(res=res)
+    # plt.triplot(ss.tri.points[:, 0], ss.tri.points[:, 1], ss.tri.simplices)
+    # plt.show()
+    # print(ss.tri.neighbors)
+
     # Exercise 1 L06 Barycentric coordinate transformation
     t_points = [[0, 0], [1, -1], [-1, -1]]
     ss._y = np.asarray([1, 1])  # needed to make test work
@@ -252,5 +260,26 @@ if __name__ == "__main__":
     # plt.triplot(ss.tri.points[:, 0], ss.tri.points[:, 1], ss.tri.simplices)
     #
     # ss2.run(1, 0, True)
+    #
+    # plt.show()
+
+    # import matplotlib.pyplot as plt
+    # from mpl_toolkits.mplot3d import Axes3D
+    #
+    # plt.plot(x[0], x[1], ls="None", marker="o")
+    # points = ss._n_cube_domain(res)
+    # plt.plot(points[:, 0], points[:, 1], ls="None", color='k', marker='x')
+    # ss.triangulate(res=res)
+    # plt.triplot(ss.tri.points[:, 0], ss.tri.points[:, 1], ss.tri.simplices)
+    #
+    # fig = plt.figure()
+    # ax = fig.gca(projection='3d')
+    #
+    # # FIXME calculate cartesian coords of vertices of all simplices to plot
+    # X = ss2.tri.points[:, 0]
+    # Y = ss2.tri.points[:, 1]
+    # X, Y = np.meshgrid(X, Y)
+    # print(X, Y)
+    # surf = ax.plot_surface(X, Y, c_opt_inv[:-2])
     #
     # plt.show()
